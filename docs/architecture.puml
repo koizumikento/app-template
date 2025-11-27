@@ -1,0 +1,113 @@
+@startuml
+
+title Local Architecture (FastAPI + ARQ + Redis) - Offline
+
+skinparam {
+    componentStyle rectangle
+    defaultFontSize 12
+    shadowing true
+    roundCorner 15
+}
+
+skinparam component {
+    BackgroundColor<<frontend>> #E3F2FD
+    BorderColor<<frontend>> #1565C0
+    BackgroundColor<<api>> #E8F5E9
+    BorderColor<<api>> #2E7D32
+    BackgroundColor<<queue>> #FFF3E0
+    BorderColor<<queue>> #E65100
+    BackgroundColor<<worker>> #F3E5F5
+    BorderColor<<worker>> #7B1FA2
+    BackgroundColor<<storage>> #ECEFF1
+    BorderColor<<storage>> #455A64
+}
+
+skinparam package {
+    BackgroundColor #FAFAFA
+    BorderColor #BDBDBD
+}
+
+skinparam rectangle {
+    BackgroundColor #FFFFFF
+    BorderColor #424242
+}
+
+' Presentation Layer
+package "Presentation Layer" {
+    component "Client\n(Browser / Mobile)" as Client <<frontend>>
+}
+
+' Application Layer
+rectangle "Docker Compose (Offline)" {
+    
+    component "FastAPI" as FastAPI <<api>> {
+        component "API Endpoints" as API
+        component "ARQTaskQueue" as TaskQueue
+    }
+    
+    component "Redis\n(Task Queue)" as Redis <<queue>>
+    
+    component "ARQ Worker" as Worker <<worker>> {
+        component "Task Handlers\n(Business Logic)" as Handlers
+    }
+    
+    package "Storage" {
+        database "PostgreSQL" as Postgres <<storage>>
+        component "fake-gcs-server\n(GCS Emulator)" as FakeGCS <<storage>>
+    }
+}
+
+' Connections
+Client -down-> API : HTTP/REST
+
+API -down-> TaskQueue : enqueue
+TaskQueue -down-> Redis : 1. save task data\n(ARQ format)
+
+Worker -up-> Redis : 2. poll & fetch\ntask data
+
+Handlers -down-> Postgres : 3. save result
+Handlers -down-> FakeGCS : save files
+
+API -down-> Postgres : CRUD / get result
+API -down-> FakeGCS : file upload/download
+
+' Notes
+note left of TaskQueue
+  **ARQTaskQueue**
+  1. Redis にタスク保存
+  (トリガー不要)
+  
+  ARQ Worker が
+  自動でポーリング
+end note
+
+note right of Redis
+  **Redis**
+  Task Queue のみ
+  (結果はDBに保存)
+end note
+
+note right of Handlers
+  **Shared Logic**
+  GCP版と同じコード
+  
+  Storage API は
+  GCS互換
+end note
+
+note bottom of FakeGCS
+  **fake-gcs-server**
+  github.com/fsouza/fake-gcs-server
+  
+  GCS API エミュレータ
+  Cloud Storage と同じ API
+end note
+
+note bottom of Postgres
+  **PostgreSQL**
+  - Task results
+  - Application data
+  Cloud SQL と同じ
+end note
+
+@enduml

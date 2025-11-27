@@ -1,0 +1,63 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./backend
+    command: ["./start.sh"]
+    environment:
+      ENV: local
+      DATABASE_URL: postgresql+asyncpg://app:app@postgres:5432/app
+      REDIS_URL: redis://redis:6379/0
+      GCS_ENDPOINT: http://fake-gcs:4443
+      GCS_BUCKET: app-bucket
+      GUNICORN_WORKERS: "1"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+      - fake-gcs
+    volumes:
+      - ./backend:/app
+
+  worker:
+    build: ./backend
+    command: ["./start_worker.sh"]
+    environment:
+      ENV: local
+      DATABASE_URL: postgresql+asyncpg://app:app@postgres:5432/app
+      REDIS_URL: redis://redis:6379/0
+      GCS_ENDPOINT: http://fake-gcs:4443
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  fake-gcs:
+    image: fsouza/fake-gcs-server:latest
+    command: ["-scheme", "http", "-port", "4443"]
+    ports:
+      - "4443:4443"
+    volumes:
+      - fake-gcs-data:/data
+
+volumes:
+  postgres-data:
+  fake-gcs-data:

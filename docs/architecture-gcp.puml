@@ -1,0 +1,130 @@
+@startuml
+
+title GCP Architecture (FastAPI + Cloud Tasks + Cloud Run Functions)
+
+skinparam {
+    componentStyle rectangle
+    defaultFontSize 11
+    shadowing true
+    roundCorner 15
+}
+
+skinparam component {
+    BackgroundColor<<client>> #E3F2FD
+    BorderColor<<client>> #1565C0
+    BackgroundColor<<gcp>> #E8F5E9
+    BorderColor<<gcp>> #2E7D32
+    BackgroundColor<<functions>> #E1F5FE
+    BorderColor<<functions>> #0277BD
+    BackgroundColor<<upstash>> #FFEBEE
+    BorderColor<<upstash>> #C62828
+    BackgroundColor<<storage>> #ECEFF1
+    BorderColor<<storage>> #455A64
+}
+
+skinparam package {
+    BackgroundColor #FAFAFA
+    BorderColor #BDBDBD
+}
+
+skinparam rectangle {
+    BackgroundColor #FFFFFF
+    BorderColor #424242
+}
+
+' External
+package "External" {
+    component "Client\n(Browser / Mobile)" as Client <<client>>
+}
+
+' Upstash
+rectangle "Upstash" {
+    component "Redis\n(Task Queue)" as Redis <<upstash>>
+}
+
+' GCP
+rectangle "Google Cloud Platform" {
+    
+    package "Networking" {
+        component "Cloud Load Balancer" as LB <<gcp>>
+        component "Cloud Armor\n(WAF/DDoS)" as Armor <<gcp>>
+    }
+    
+    component "FastAPI (Cloud Run Service)" as FastAPI <<gcp>> {
+        component "API Endpoints" as API
+        component "GCPTaskQueue" as TaskQueue
+    }
+    
+    package "Task Trigger" {
+        component "Cloud Tasks\n(HTTP Queue)" as CloudTasks <<gcp>>
+    }
+    
+    component "Cloud Run Functions" as Worker <<functions>> {
+        component "Task Handlers\n(Business Logic)" as Handlers
+    }
+    
+    package "Storage" {
+        database "Cloud SQL\n(PostgreSQL)" as CloudSQL <<storage>>
+        component "Cloud Storage\n(GCS)" as GCS <<storage>>
+    }
+
+    package "Observability" {
+        component "Cloud Logging" as Logging <<gcp>>
+    }
+}
+
+' Connections
+Client -down-> Armor : HTTPS
+Armor -down-> LB
+LB -down-> API : HTTP
+
+API -down-> TaskQueue : enqueue
+TaskQueue -right-> Redis : 1. save task data
+TaskQueue -down-> CloudTasks : 2. create task\n(task_id)
+
+CloudTasks -down-> Worker : 3. HTTP trigger\n(task_id)
+
+Handlers -right-> Redis : 4. fetch task data
+
+Handlers -down-> CloudSQL : 5. save result
+Handlers -down-> GCS : save files
+
+API -down-> CloudSQL : CRUD / get result
+API -down-> GCS : file upload/download
+
+API ..> Logging : logs
+Handlers ..> Logging : logs
+
+' Notes
+note left of TaskQueue
+  **GCPTaskQueue**
+  1. Redis にタスク保存
+  2. Cloud Tasks でトリガー
+  
+  (Local版は1のみ)
+end note
+
+note right of Redis
+  **Upstash Redis**
+  Task Queue のみ
+  (結果はDBに保存)
+end note
+
+note left of Handlers
+  **Shared Logic**
+  Local版と同じコード
+end note
+
+note right of GCS
+  **Local Mapping**
+  fake-gcs-server
+  -> Cloud Storage
+end note
+
+note right of CloudSQL
+  **Local Mapping**
+  PostgreSQL (Docker)
+  -> Cloud SQL
+end note
+
+@enduml
