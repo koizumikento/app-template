@@ -42,4 +42,3 @@ def test_task_response_from_record() -> None:
     assert response.queued_at == base_time
     assert response.started_at == base_time
     assert response.finished_at == base_time
-

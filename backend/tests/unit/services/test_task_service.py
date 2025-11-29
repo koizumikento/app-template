@@ -44,7 +44,9 @@ async def test_enqueue_simple_task(monkeypatch, mock_session, mock_task_queue) -
         {"task_id": str(expected_uuid), **payload},
         job_id=str(expected_uuid),
     )
-    create_mock.assert_awaited_once_with(mock_session, str(expected_uuid), {"task_id": str(expected_uuid), **payload})
+    create_mock.assert_awaited_once_with(
+        mock_session, str(expected_uuid), {"task_id": str(expected_uuid), **payload}
+    )
     assert call_order == ["create", "enqueue"]
     assert result is record
 
@@ -63,7 +65,9 @@ async def test_get_task(monkeypatch, mock_session, mock_task_queue) -> None:
 
 
 @pytest.mark.asyncio
-async def test_enqueue_simple_task_queue_failure(monkeypatch, mock_session, mock_task_queue) -> None:
+async def test_enqueue_simple_task_queue_failure(
+    monkeypatch, mock_session, mock_task_queue
+) -> None:
     service = TaskService(mock_task_queue)
     payload = {"sleep_seconds": 0.5, "data": {"key": "value"}}
     expected_uuid = UUID("87654321-4321-6789-4321-678987654321")
@@ -77,17 +81,20 @@ async def test_enqueue_simple_task_queue_failure(monkeypatch, mock_session, mock
     mark_failed_mock = AsyncMock(return_value=record)
     monkeypatch.setattr("services.task_service.uuid4", lambda: expected_uuid)
     monkeypatch.setattr("services.task_service.TaskRepository.create", create_mock)
-    monkeypatch.setattr("services.task_service.TaskRepository.mark_failed", mark_failed_mock)
+    monkeypatch.setattr(
+        "services.task_service.TaskRepository.mark_failed", mark_failed_mock
+    )
     mock_task_queue.enqueue.side_effect = RuntimeError("boom")
 
     with pytest.raises(RuntimeError, match="boom"):
         await service.enqueue_simple_task(mock_session, payload)
 
-    create_mock.assert_awaited_once_with(mock_session, str(expected_uuid), {"task_id": str(expected_uuid), **payload})
+    create_mock.assert_awaited_once_with(
+        mock_session, str(expected_uuid), {"task_id": str(expected_uuid), **payload}
+    )
     mock_task_queue.enqueue.assert_awaited_once_with(
         "process_simple_task",
         {"task_id": str(expected_uuid), **payload},
         job_id=str(expected_uuid),
     )
     mark_failed_mock.assert_awaited_once_with(mock_session, str(expected_uuid), "boom")
-

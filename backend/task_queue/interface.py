@@ -18,4 +18,3 @@ class TaskQueue(ABC):
     @abstractmethod
     async def close(self) -> None:
         """リソースの開放。"""
-

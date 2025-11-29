@@ -30,4 +30,3 @@ class TaskResponse(BaseModel):
     @classmethod
     def from_record(cls, record: TaskRecord) -> "TaskResponse":
         return cls.model_validate(record)
-

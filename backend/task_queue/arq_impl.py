@@ -10,7 +10,9 @@ from task_queue.interface import TaskQueue
 class ARQTaskQueue(TaskQueue):
     """ARQ を利用した TaskQueue 実装。"""
 
-    def __init__(self, redis_dsn: Optional[str] = None, queue_name: Optional[str] = None) -> None:
+    def __init__(
+        self, redis_dsn: Optional[str] = None, queue_name: Optional[str] = None
+    ) -> None:
         redis_url = redis_dsn or str(settings.redis_url)
 
         self._redis_settings = RedisSettings.from_dsn(redis_url)

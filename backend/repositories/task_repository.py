@@ -13,7 +13,9 @@ class TaskRepository:
     """TaskRecord を操作するリポジトリ。"""
 
     @staticmethod
-    async def create(session: AsyncSession, task_id: str, payload: dict[str, Any]) -> TaskRecord:
+    async def create(
+        session: AsyncSession, task_id: str, payload: dict[str, Any]
+    ) -> TaskRecord:
         record = TaskRecord(id=task_id, payload=payload, status=TaskStatus.QUEUED)
         session.add(record)
         await session.commit()
@@ -30,7 +32,9 @@ class TaskRepository:
         return record
 
     @staticmethod
-    async def mark_succeeded(session: AsyncSession, task_id: str, result: dict[str, Any]) -> TaskRecord:
+    async def mark_succeeded(
+        session: AsyncSession, task_id: str, result: dict[str, Any]
+    ) -> TaskRecord:
         record = await TaskRepository._get(session, task_id)
         record.status = TaskStatus.SUCCEEDED
         record.result = result
@@ -41,7 +45,9 @@ class TaskRepository:
         return record
 
     @staticmethod
-    async def mark_failed(session: AsyncSession, task_id: str, error: str) -> TaskRecord:
+    async def mark_failed(
+        session: AsyncSession, task_id: str, error: str
+    ) -> TaskRecord:
         record = await TaskRepository._get(session, task_id)
         record.status = TaskStatus.FAILED
         record.error = error

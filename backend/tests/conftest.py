@@ -1,5 +1,5 @@
 from collections.abc import AsyncIterator
-from typing import Callable
+from typing import Generator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -42,14 +42,18 @@ def task_service(mock_task_queue: MagicMock) -> TaskService:
 
 
 @pytest.fixture
-def client(mock_session: MagicMock) -> AsyncIterator[TestClient]:
+def client(
+    mock_session: MagicMock, mock_task_queue: MagicMock
+) -> Generator[TestClient, None, None]:
     """依存関係をモック化した TestClient。"""
 
     async def _override_get_session() -> AsyncIterator[AsyncSession]:
         yield mock_session  # type: ignore[misc]
 
+    # app.state.task_queue をモックで設定
+    app.state.task_queue = mock_task_queue
+
     app.dependency_overrides[get_session] = _override_get_session
-    with TestClient(app) as test_client:
+    with TestClient(app, raise_server_exceptions=False) as test_client:
         yield test_client
     app.dependency_overrides.pop(get_session, None)
-
